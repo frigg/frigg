@@ -13,7 +13,7 @@ from django.conf import settings
 from frigg.utils import github_api_request
 
 
-#sys.path.append(os.path.dirname(__file__))
+# sys.path.append(os.path.dirname(__file__))
 
 
 class BuildResult(models.Model):
@@ -65,15 +65,26 @@ class Build(models.Model):
         self.add_comment("Running tests.. be patient :)\n\n%s" % 
                          self.get_absolute_url())
         self._clone_repo()
-        self._run_tox()
-        #self._delete_tmp_folder()
+        result_tox = self._run_tox()
+
+        if result_tox is True:
+            self.add_comment("All gooodie good\n\n"
+                             "https://frigg.tind.io/build/%s/" % self.id)
+            self._set_commit_status("success")
+        elif result_tox is False:
+            self.add_comment("Be careful.. the tests failed\n\n"
+                             "https://frigg.tind.io/build/%s/" % self.id)
+            self._set_commit_status("failure")
+        else:
+            self._set_commit_status("error")
+            # self._delete_tmp_folder()
 
     def deploy(self):
         with lcd(self.working_directory()):
             local("./deploy.sh")
 
     def _clone_repo(self):
-        #Cleanup old if exists..
+        # Cleanup old if exists..
         self._delete_tmp_folder()
         local("mkdir -p %s" % self.frigg_tmp_directory())
         local("git clone %s %s" % (self.git_repository, self.working_directory()))
@@ -82,11 +93,14 @@ class Build(models.Model):
             local("git checkout %s" % self.branch)
 
     def _run_tox(self):
+        """ Test the code quality thanks to tox.
+
+            :return : True if success, False if not, None if error.
+        """
 
         if not os.path.isfile(os.path.join(self.working_directory(), "tox.ini")):
             self.add_comment("The project is missing a tox.ini file")
-            self._set_commit_status("error")
-            return
+            return None
 
         try:
 
@@ -95,9 +109,11 @@ class Build(models.Model):
                 with lcd(self.working_directory()):
 
                     if _platform == "darwin":
-                        run_result = local("script %s/frigg_testlog tox" % self.working_directory())
+                        run_result = local(
+                            u"script {0:s}/frigg_testlog tox".format(self.working_directory()))
                     else:
-                        run_result = local("script -c tox |tee %s/frigg_testlog" % self.working_directory())
+                        run_result = local(u"script -c tox |tee {0:s}/frigg_testlog".format(
+                            self.working_directory()))
 
                     run_result = local("tox")
 
@@ -108,25 +124,19 @@ class Build(models.Model):
                         build_result.result_log = f.read()
                         build_result.save()
 
-                #Read from testlog-file
+                # Read from testlog-file
                 self.result = build_result
                 self.save()
 
                 if self.result.succeeded:
-                    self.add_comment("All gooodie good\n\n%s" %
-                                     self.get_absolute_url())
-
-                    self._set_commit_status("success")
-
+                    return True
                 else:
-                    self.add_comment("Be careful.. the tests failed\n\n%s" %
-                                     self.get_absolute_url())
+                    return False
 
-                    self._set_commit_status("failure")
-
-        except AttributeError, e:
+        except AttributeError as e:
             self.add_comment("I was not able to perform the tests.. Sorry. \n "
                              "More information: \n\n %s" % str(e))
+            return None
 
     def add_comment(self, message):
         owner, repo = self.get_git_repo_owner_and_name()

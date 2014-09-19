@@ -28,6 +28,7 @@
     <div class="header">
         <ul class="nav nav-pills pull-right">
             <li class="active"><a href="/">Overview</a></li>
+            <li class="active"><a href="/accounts/logout/">Logout</a></li>
         </ul>
         <a href="/">
         <h3 class="text-muted">Frigg Continuous Integration Server</h3>
@@ -58,7 +59,6 @@
 
                     </a>
 
-
                 {% endfor %}
 
             </div>
@@ -66,15 +66,11 @@
 
     {% endblock %}
 
-
 </div>
 
 <script src="{{ STATIC_URL }}js/jquery.js" type="text/javascript"></script>
 {% block js %}{% endblock %}
 
-
 </body>
-
-
 
 </html>

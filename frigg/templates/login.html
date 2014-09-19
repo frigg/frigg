@@ -63,6 +63,12 @@
                     {% endif %}
                 </div>
 
+                {% if form.errors %}
+                <div class="alert alert-danger" r   ole="alert">
+                    <p>Your username and password didn't match. Please try again.</p>
+                </div>
+                {% endif %}
+
                 <button type="submit" class="btn btn-primary">Login</button>
 
             </form>
