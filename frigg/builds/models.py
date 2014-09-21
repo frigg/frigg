@@ -69,8 +69,12 @@ class Build(models.Model):
 
     def load_settings(self):
         path = os.path.join(self.working_directory(), '.frigg.yml')
+        settings = {
+            'webhooks': []
+        }
         with open(path) as f:
-            return yaml.load(f)
+            settings.update(yaml.load(f))
+        return settings
 
     def run_tests(self):
         self._set_commit_status("pending")
