@@ -102,6 +102,9 @@ class Build(models.Model):
         self.add_comment(self.result.get_comment_message(self.get_absolute_url()))
         self._set_commit_status(self.result.get_status())
 
+        for url in self.load_settings()['webhooks']:
+            self.send_webhook(url)
+
     def deploy(self):
         with lcd(self.working_directory()):
             local("./deploy.sh")
