@@ -102,11 +102,15 @@ class Build(models.Model):
         with lcd(self.working_directory()):
             local("./deploy.sh")
 
-    def _clone_repo(self):
+    def _clone_repo(self, depth=1):
         # Cleanup old if exists..
         self._delete_tmp_folder()
         local("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
-        local("git clone %s %s" % (self.git_repository, self.working_directory()))
+        local("git clone --depth=%s --no-single-branch %s %s" % (
+            depth,
+            self.git_repository,
+            self.working_directory())
+        )
 
         with lcd(self.working_directory()):
             local("git checkout %s" % self.branch)
