@@ -78,13 +78,13 @@ class Build(models.Model):
 
     def run_tests(self):
         self._set_commit_status("pending")
+        self._clone_repo()
         self.add_comment("Running tests.. be patient :)\n\n%s" %
                          self.get_absolute_url())
         build_result = BuildResult.objects.create()
         self.result = build_result
         self.save()
         try:
-            self._clone_repo()
 
             for task in self.load_settings()['tasks']:
                 self._run_task(task)
@@ -116,8 +116,8 @@ class Build(models.Model):
         local("git clone --depth=%s --no-single-branch %s %s" % (
             depth,
             self.git_repository,
-            self.working_directory())
-        )
+            self.working_directory()
+        ))
 
         with lcd(self.working_directory()):
             local("git checkout %s" % self.branch)
