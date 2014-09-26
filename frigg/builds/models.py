@@ -132,7 +132,6 @@ class Build(models.Model):
                     script_command = "script -c \"%(command)s\" |tee %(pwd)s/frigg_testlog"
 
                 run_result = local(script_command % options)
-                run_result = local(task_command)
 
                 self.result.succeeded = run_result.succeeded
                 self.result.return_code += "%s," % run_result.return_code
