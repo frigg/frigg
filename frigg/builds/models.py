@@ -69,8 +69,12 @@ class Build(models.Model):
 
     def load_settings(self):
         path = os.path.join(self.working_directory(), '.frigg.yml')
+        settings = {
+            'webhooks': []
+        }
         with open(path) as f:
-            return yaml.load(f)
+            settings.update(yaml.load(f))
+        return settings
 
     def run_tests(self):
         self._set_commit_status("pending")
@@ -97,6 +101,9 @@ class Build(models.Model):
 
         self.add_comment(self.result.get_comment_message(self.get_absolute_url()))
         self._set_commit_status(self.result.get_status())
+
+        for url in self.load_settings()['webhooks']:
+            self.send_webhook(url)
 
     def deploy(self):
         with lcd(self.working_directory()):
