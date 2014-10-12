@@ -100,3 +100,4 @@ IGNORED_PULL_REQUEST_ACTIONS = ['closed', 'assigned', 'unassigned', 'labeled',
                                 'unlabeled']
 
 DOCKER_SOCKET = "unix://var/run/docker.sock"
+DOCKER_IP = "127.0.0.1"

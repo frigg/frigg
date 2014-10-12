@@ -1,12 +1,10 @@
-from random import randint
+import os
 import docker
 
-#from django.conf import settings
+from django.conf import settings
+
 from fabric.operations import sudo
 from fabric.state import env
-
-DOCKER_SOCKET = "tcp://192.168.59.103:2375"
-DOCKER_IP = "192.168.59.103"
 
 
 class DockerBackend(object):
@@ -15,11 +13,11 @@ class DockerBackend(object):
         self.id = id
         self.ssh_port = 15000 + self.id
         self.http_port = 18000 + self.id
-        self.client = docker.Client(base_url=DOCKER_SOCKET,
+        self.client = docker.Client(base_url=settings.DOCKER_SOCKET,
                                     timeout=10)
 
     def __build_dockerfile(self):
-        self.client.build(path="/Users/frecar/code/frigg/frigg/templates/", tag="frigg_basic")
+        self.client.build(path=os.path.join(settings.BASE_DIR, "templates"), tag="frigg_basic")
 
     def create(self):
         self.__build_dockerfile()
@@ -35,15 +33,9 @@ class DockerBackend(object):
         pass
 
     def run(self, cmd, capture=False):
-        env.host_string = DOCKER_IP + ":%s" % self.ssh_port
+        env.host_string = settings.DOCKER_IP + ":%s" % self.ssh_port
         env.user = "root"
         env.password = "screencast"
 
         return sudo(cmd, pty=True)
 
-
-#id = randint(100, 200)
-#d = DockerBackend(id, "fredrik%s" % id)
-#d.create()
-#d.start()
-#print d.run("ifconfig")
