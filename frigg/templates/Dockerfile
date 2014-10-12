@@ -3,7 +3,7 @@
 # VERSION               0.0.1
 
 FROM ubuntu:14.04
-MAINTAINER FRIGG "thatcher@dotcloud.com"
+MAINTAINER FRIGG "hi@frigg.io"
 
 #Packages
 ENV DEBIAN_FRONTEND noninteractive
@@ -13,7 +13,7 @@ RUN pip install flake8
 
 RUN mkdir /opt/builds
 RUN mkdir /var/run/sshd
-RUN echo 'root:screencast' | chpasswd
+RUN echo 'root:supersecretawsmpassword' | chpasswd
 RUN sed -i 's/PermitRootLogin without-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 
 EXPOSE 22 80

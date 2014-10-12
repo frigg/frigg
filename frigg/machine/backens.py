@@ -35,7 +35,6 @@ class DockerBackend(object):
     def run(self, cmd, capture=False):
         env.host_string = settings.DOCKER_IP + ":%s" % self.ssh_port
         env.user = "root"
-        env.password = "screencast"
+        env.password = "supersecretawsmpassword"
 
         return sudo(cmd, pty=True)
-
