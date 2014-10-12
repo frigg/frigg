@@ -98,3 +98,5 @@ SERVER_ADDRESS = '127.0.0.1:8000'
 # assigned, unassigned, labeled, unlabeled, opened, closed, reopened, or synchronized.
 IGNORED_PULL_REQUEST_ACTIONS = ['closed', 'assigned', 'unassigned', 'labeled',
                                 'unlabeled']
+
+DOCKER_SOCKET = "unix://var/run/docker.sock"
