@@ -71,16 +71,12 @@ class Build(models.Model):
     class Meta:
         unique_together = ('project', 'build_number')
 
-    def setup_machine(self):
+    def __init__(self, *args, **kwargs):
+        super(Build, self).__init__(*args, **kwargs)
+
         self.backend = DockerBackend(self.build_number, "%s%s%s" % (self.project.name,
                                                                     self.pull_request_id,
                                                                     self.build_number))
-
-        self.backend.create()
-        self.backend.start()
-
-    def __init__(self, *args, **kwargs):
-        super(Build, self).__init__(*args, **kwargs)
 
     def __unicode__(self):
         return "%s / %s " % (self.project, self.branch)
@@ -96,6 +92,10 @@ class Build(models.Model):
 
     def run(self, cmd, capture=False):
         return self.backend.run(cmd, capture)
+
+    def setup_machine(self):
+        self.backend.create()
+        self.backend.start()
 
     @property
     def color(self):
