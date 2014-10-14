@@ -21,7 +21,6 @@ class DockerBackend(object):
 
     def create(self):
         self.__build_dockerfile()
-
         self.client.create_container("frigg_basic", name=self.name)
 
     def start(self):

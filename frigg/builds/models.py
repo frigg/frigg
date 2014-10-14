@@ -15,7 +15,7 @@ from fabric.context_managers import cd
 from fabric.api import settings as fabric_settings
 
 from frigg.helpers import github
-from frigg.machine.backens import DockerBackend
+from frigg.machine.backends import DockerBackend
 from .managers import ProjectManager
 
 
