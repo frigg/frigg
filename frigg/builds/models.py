@@ -185,22 +185,10 @@ class Build(models.Model):
     def _clone_repo(self, depth=1):
         # Cleanup old if exists..
         self._delete_tmp_folder()
-<<<<<<< HEAD
         self.run("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
-        self.run("git clone --depth=%s --no-single-branch %s %s" % (
-            depth,
-            "https://github.com/frigg/frigg.git",
-            self.working_directory
-        ))
 
-        # self.project.git_repository,
-
-        with cd(self.working_directory):
-            self.run("git checkout %s" % self.branch)
-=======
-        local("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
         with fabric_settings(warn_only=True):
-            clone = local("git clone --depth=%s --branch=%s %s %s" % (
+            clone = self.run("git clone --depth=%s --branch=%s %s %s" % (
                 depth,
                 self.branch,
                 self.project.clone_url,
@@ -214,7 +202,6 @@ class Build(models.Model):
                 self.result.save()
                 logger.error(message)
             return clone.succeeded
->>>>>>> master
 
     def _run_task(self, task_command):
         with fabric_settings(warn_only=True):

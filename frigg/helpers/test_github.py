@@ -4,7 +4,7 @@ import json
 
 from django.conf import settings
 from django.test import TestCase
-from frigg.builds.models import Build, BuildResult
+from frigg.builds.models import Build, BuildResult, Project
 from frigg.helpers.github import _get_status_from_build
 
 from .github import parse_comment_payload, parse_push_payload, parse_pull_request_payload
@@ -61,7 +61,8 @@ class GithubHelpersTestCase(TestCase):
 
     def test__get_status_from_build(self):
         error = RuntimeError()
-        build = Build.objects.create(build_number=1, branch='master', sha='sha')
+        project = Project.objects.create(name="TestProject")
+        build = Build.objects.create(project=project, build_number=1, branch='master', sha='sha')
         build.result = BuildResult.objects.create(result_log='result', succeeded=True,
                                                   return_code=0)
 
