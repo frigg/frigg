@@ -13,10 +13,12 @@ from django.utils.functional import cached_property
 from django.core.urlresolvers import reverse
 from fabric.context_managers import cd
 from fabric.api import settings as fabric_settings
+from social_auth.db.django_models import UserSocialAuth
 
 from frigg.helpers import github
 from frigg.machine.backends import DockerBackend
 from .managers import ProjectManager
+from .helpers import detect_test_runners
 
 
 logger = logging.getLogger("frigg_build_logger")
@@ -27,11 +29,30 @@ class Project(models.Model):
     owner = models.CharField(max_length=100, blank=True)
     git_repository = models.CharField(max_length=150)
     average_time = models.IntegerField(null=True)
+    private = models.BooleanField(default=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                             help_text='A user with access to the repository.')
 
     objects = ProjectManager()
 
     def __unicode__(self):
         return "%(owner)s / %(name)s " % self.__dict__
+
+    @property
+    def github_token(self):
+        try:
+            token = UserSocialAuth.objects.get(user=self.user,
+                                               provider='github').extra_data['access_token']
+        except UserSocialAuth.DoesNotExist:
+            token = getattr(settings, 'GITHUB_ACCESS_TOKEN', ':')
+        return token
+
+    @property
+    def clone_url(self):
+        if self.private:
+            return "https://%s@github.com/%s/%s" % (self.github_token, self.owner, self.name)
+        else:
+            return "https://github.com/%s/%s" % (self.owner, self.name)
 
     @property
     def last_build_number(self):
@@ -110,28 +131,28 @@ class Build(models.Model):
         # Default value for project .frigg.yml
         settings = {
             'webhooks': [],
-            'comment': True
+            'comment': False
         }
 
-        path = os.path.join(self.working_directory, '.frigg.yml')
-        settings.update(yaml.load(self.run("cat %s" % path)))
+        try:
+            path = os.path.join(self.working_directory, '.frigg.yml')
+            settings.update(yaml.load(self.run("cat %s" % path)))
+        except IOError:
+            settings['tasks'] = detect_test_runners(self)
+
         return settings
 
     def run_tests(self):
         self.setup_machine()
 
         github.set_commit_status(self, pending=True)
-        self._clone_repo()
 
-        try:
-            self.settings
-        except IOError:
-            message = ".frigg.yml file is missing, can't continue without it"
-            github.comment_on_commit(self, message)
-            return
+        if not self._clone_repo():
+            return github.set_commit_status(self, error='Access denied')
 
         self.add_comment("Running tests.. be patient :)\n\n%s" %
                          self.get_absolute_url())
+
         build_result = BuildResult.objects.create()
         self.result = build_result
         self.save()
@@ -164,6 +185,7 @@ class Build(models.Model):
     def _clone_repo(self, depth=1):
         # Cleanup old if exists..
         self._delete_tmp_folder()
+<<<<<<< HEAD
         self.run("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
         self.run("git clone --depth=%s --no-single-branch %s %s" % (
             depth,
@@ -175,6 +197,24 @@ class Build(models.Model):
 
         with cd(self.working_directory):
             self.run("git checkout %s" % self.branch)
+=======
+        local("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
+        with fabric_settings(warn_only=True):
+            clone = local("git clone --depth=%s --branch=%s %s %s" % (
+                depth,
+                self.branch,
+                self.project.clone_url,
+                self.working_directory
+            ), capture=True)
+            if not clone.succeeded:
+                message = "Access denied to %s/%s" % (self.project.owner, self.project.name)
+                self.result.succeeded = False
+                self.result.return_code = 128
+                self.result.result_log = message
+                self.result.save()
+                logger.error(message)
+            return clone.succeeded
+>>>>>>> master
 
     def _run_task(self, task_command):
         with fabric_settings(warn_only=True):
@@ -182,7 +222,8 @@ class Build(models.Model):
                 run_result = self.run(task_command, capture=True)
 
                 self.result.succeeded = run_result.succeeded
-                self.result.return_code += "%s," % run_result.return_code
+                self.result.return_code = "%s,%s," % (self.result.return_code,
+                                                      run_result.return_code)
 
                 log = 'Task: {0}\n'.format(task_command)
                 log += '------------------------------------\n'

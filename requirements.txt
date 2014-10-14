@@ -6,3 +6,4 @@ gunicorn
 django-fabric
 pyyaml
 docker-py
+django-social-auth

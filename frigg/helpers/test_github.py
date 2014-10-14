@@ -21,6 +21,7 @@ class GithubHelpersTestCase(TestCase):
         self.assertEquals(output['repo_url'], 'git@github.com:tind/frigg.git')
         self.assertEquals(output['repo_owner'], 'tind')
         self.assertEquals(output['repo_name'], 'frigg')
+        self.assertEquals(output['private'], False)
         self.assertEquals(output['pull_request_id'], '29')
 
     def test_parse_pull_request_payload(self):
@@ -30,6 +31,7 @@ class GithubHelpersTestCase(TestCase):
         self.assertEquals(output['repo_url'], 'git@github.com:tind/frigg.git')
         self.assertEquals(output['repo_owner'], 'tind')
         self.assertEquals(output['repo_name'], 'frigg')
+        self.assertEquals(output['private'], False)
 
     def test_parse_pull_request_payload_labeled(self):
         data = json.load(open(os.path.join(self.fixtures_path, 'pull_request_labeled.json')))
@@ -51,6 +53,7 @@ class GithubHelpersTestCase(TestCase):
         self.assertEquals(output['repo_owner'], 'tind')
         self.assertEquals(output['repo_name'], 'frigg')
         self.assertEquals(output['branch'], 'master')
+        self.assertEquals(output['private'], False)
         self.assertEquals(output['sha'], 'fddd2887efd63196e48fd5d6bc0e62e1bafa0276')
 
         data = json.load(open(os.path.join(self.fixtures_path, 'push_branch.json')))

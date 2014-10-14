@@ -33,6 +33,8 @@ def github_webhook(request):
 
     if data:
         project = Project.objects.get_or_create_from_url(data['repo_url'])
+        project.private = data['private']
+        project.save()
         build = project.start_build(data)
         return HttpResponse('Handled "%s" event.\nMore info at %s' % (
             event,

@@ -26,13 +26,12 @@
             <div class="header">
                 <ul class="nav nav-pills pull-right">
                     <li class="active"><a href="/">Overview</a></li>
-                    <li><a href="/accounts/logout/">Logout</a></li>
+                    <li><a href="{% url 'logout' %}">Logout</a></li>
                 </ul>
                 <a href="/">
                 <h3 class="text-muted">Frigg Continuous Integration Server</h3>
                 </a>
             </div>
-
             {% block content %}{% endblock %}
         </div>
 
