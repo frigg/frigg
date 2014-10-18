@@ -11,12 +11,12 @@ from django.db import models
 from django.conf import settings
 from django.utils.functional import cached_property
 from django.core.urlresolvers import reverse
-from fabric.context_managers import lcd
-from fabric.operations import local
+from fabric.context_managers import cd
 from fabric.api import settings as fabric_settings
 from social_auth.db.django_models import UserSocialAuth
 
 from frigg.helpers import github
+from frigg.machine.backends import DockerBackend
 from .managers import ProjectManager
 from .helpers import detect_test_runners
 
@@ -101,6 +101,13 @@ class Build(models.Model):
     class Meta:
         unique_together = ('project', 'build_number')
 
+    def __init__(self, *args, **kwargs):
+        super(Build, self).__init__(*args, **kwargs)
+
+        self.backend = DockerBackend(self.build_number, "%s%s%s" % (self.project.name,
+                                                                    self.pull_request_id,
+                                                                    self.build_number))
+
     def __unicode__(self):
         return "%s / %s " % (self.project, self.branch)
 
@@ -113,6 +120,13 @@ class Build(models.Model):
     def get_pull_request_url(self):
         return github.get_pull_request_url(self)
 
+    def run(self, cmd, capture=False):
+        return self.backend.run(cmd, capture)
+
+    def setup_machine(self):
+        self.backend.create()
+        self.backend.start()
+
     @property
     def color(self):
         if self.result is None:
@@ -123,7 +137,6 @@ class Build(models.Model):
 
     @cached_property
     def settings(self):
-        path = os.path.join(self.working_directory, '.frigg.yml')
         # Default value for project .frigg.yml
         settings = {
             'webhooks': [],
@@ -131,25 +144,29 @@ class Build(models.Model):
         }
 
         try:
-            with open(path) as f:
-                settings.update(yaml.load(f))
+            path = os.path.join(self.working_directory, '.frigg.yml')
+            settings.update(yaml.load(self.run("cat %s" % path)))
         except IOError:
             settings['tasks'] = detect_test_runners(self)
+
         return settings
 
     def run_tests(self):
+        self.setup_machine()
+
         github.set_commit_status(self, pending=True)
-        build_result = BuildResult.objects.create()
-        self.result = build_result
-        self.save()
 
         if not self._clone_repo():
             return github.set_commit_status(self, error='Access denied')
 
         self.add_comment("Running tests.. be patient :)\n\n%s" %
                          self.get_absolute_url())
-        try:
 
+        build_result = BuildResult.objects.create()
+        self.result = build_result
+        self.save()
+
+        try:
             for task in self.settings['tasks']:
                 self._run_task(task)
                 if not self.result.succeeded:
@@ -171,15 +188,16 @@ class Build(models.Model):
             self.send_webhook(url)
 
     def deploy(self):
-        with lcd(self.working_directory):
-            local("./deploy.sh")
+        with cd(self.working_directory):
+            self.run("./deploy.sh")
 
     def _clone_repo(self, depth=1):
         # Cleanup old if exists..
         self._delete_tmp_folder()
-        local("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
+        self.run("mkdir -p %s" % settings.PROJECT_TMP_DIRECTORY)
+
         with fabric_settings(warn_only=True):
-            clone = local("git clone --depth=%s --branch=%s %s %s" % (
+            clone = self.run("git clone --depth=%s --branch=%s %s %s" % (
                 depth,
                 self.branch,
                 self.project.clone_url,
@@ -196,8 +214,8 @@ class Build(models.Model):
 
     def _run_task(self, task_command):
         with fabric_settings(warn_only=True):
-            with lcd(self.working_directory):
-                run_result = local(task_command, capture=True)
+            with cd(self.working_directory):
+                run_result = self.run(task_command, capture=True)
 
                 self.result.succeeded = run_result.succeeded
                 self.result.return_code = "%s,%s," % (self.result.return_code,
@@ -218,7 +236,7 @@ class Build(models.Model):
 
     def _delete_tmp_folder(self):
         if os.path.exists(self.working_directory):
-            local("rm -rf %s" % self.working_directory)
+            self.run("rm -rf %s" % self.working_directory)
 
     def testlog(self):
         try:
