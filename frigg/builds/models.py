@@ -162,9 +162,11 @@ class Build(models.Model):
             github.set_commit_status(self, error=e)
             self.add_comment("I was not able to perform the tests.. Sorry. \n "
                              "More information: \n\n %s" % str(e))
-
-        for url in self.settings['webhooks']:
-            self.send_webhook(url)
+        finally:
+            if not settings.DEBUG:
+                self._delete_tmp_folder()
+            for url in self.settings['webhooks']:
+                self.send_webhook(url)
 
     def deploy(self):
         with lcd(self.working_directory):
@@ -214,7 +216,9 @@ class Build(models.Model):
 
     def _delete_tmp_folder(self):
         if os.path.exists(self.working_directory):
-            local("rm -rf %s" % self.working_directory)
+            result = local("rm -rf %s" % self.working_directory, capture=True)
+            if not result.succeeded:
+                logger.error('Could not delete folder %s\n%s' % (self.working_directory, result))
 
     def testlog(self):
         try:
