@@ -7,8 +7,8 @@ python-social-auth==0.2.13
 django-pipeline==1.5.4
 django-extensions==1.5.7
 django-basis==0.4.0
-djangorestframework==3.2.5
-django-cachalot==1.0.3
+djangorestframework==3.3.0
+django-cachalot==1.1.0
 django-flat-theme==1.1.1
 manifesto==0.5
 psycopg2==2.6.1
