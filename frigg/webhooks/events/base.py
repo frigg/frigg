@@ -3,6 +3,7 @@ import logging
 from basis.compat import get_user_model
 
 from frigg.builds.models import Build, BuildResult, Project
+from frigg.owners.models import Owner
 
 logger = logging.getLogger(__name__)
 
@@ -119,10 +120,16 @@ class Event(object):
                          '{event.repository_owner}/{event.repository_name}.'.format(event=self))
 
     def create_project(self):
+        owner = Owner.objects.get_or_create(name=self.repository_owner)[0]
         project, created = Project.objects.get_or_create(
             owner=self.repository_owner,
             name=self.repository_name
         )
+
+        if created:
+            project.image = owner.image
+            project.queue_name = owner.queue_name
+
         project.private = self.repository_private
         project.save()
         return project

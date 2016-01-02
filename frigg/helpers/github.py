@@ -21,6 +21,13 @@ def get_commit_url(build):
     )
 
 
+def list_members(owner):
+    url = 'orgs/{}/members'.format(owner.name)
+    data = json.loads(api_request(url, owner.github_token).text)
+    print(data)
+    return [collaborator['login'] for collaborator in data]
+
+
 def list_collaborators(project):
     url = 'repos/%s/%s/collaborators' % (project.owner, project.name)
     data = json.loads(api_request(url, project.github_token).text)
@@ -143,7 +150,9 @@ def api_request(url, token, data=None, page=None):
         }
         response = requests.post(url, data=json.dumps(data), headers=headers)
 
+    print(url)
+
     if settings.DEBUG:
         print((response.headers.get('X-RateLimit-Remaining')))
-
+    print(response.text)
     return response

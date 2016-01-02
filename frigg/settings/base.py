@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'frigg.builds',
     'frigg.helpers',
     'frigg.deployments',
+    'frigg.owners',
     'frigg.stats',
     'frigg.utils',
     'frigg.webhooks',
