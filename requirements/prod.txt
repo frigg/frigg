@@ -1,4 +1,4 @@
 -r base.txt
 
-raven==5.14.0
+raven==5.15.0
 python3-memcached==1.51
