@@ -5,7 +5,7 @@ redis==2.10.5
 markdown==2.6.5
 python-social-auth==0.2.19
 django-pipeline==1.6.6
-django-extensions==1.6.6
+django-extensions==1.6.7
 django-basis==0.4.0
 djangorestframework==3.2.5
 django-flat-theme==1.1.3
