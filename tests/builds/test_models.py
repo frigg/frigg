@@ -447,148 +447,165 @@ class BuildTestCase(TestCase):
 
         self.assertTrue(mock_deployment_start.called_once)
 
-
-class BuildResultTestCase(TestCase):
-    def setUp(self):
-        self.project = Project.objects.create(owner='frigg', name='frigg-worker')
-        self.build = Build.objects.create(project=self.project, branch='master', build_number=1)
-
-    def test___str__(self):
-        result = BuildResult.objects.create(build=self.build)
-        self.assertEqual(str(result), 'frigg / frigg-worker / master #1')
-
-    def test_evaluate_results(self):
-        self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}]))
-        self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}, {}]))
-        self.assertFalse(BuildResult.evaluate_results([{'succeeded': True}, {'succeeded': False}]))
-        self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {'succeeded': True}]))
-        self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {}]))
-
-    def test_create_not_approved(self):
-        result = BuildResult.create_not_approved(self.build)
-        self.assertEqual(result.build_id, self.build.pk)
-        self.assertFalse(result.succeeded)
-        assert result.tasks[0]['error'] == 'This project is not approved.'
-        assert result.setup_tasks == []
-        assert result.service_tasks == []
-
-    def test_create_from_worker_payload(self):
-        BuildResult.create_from_worker_payload(self.build, {
-            'sha': 'superbhash',
-            'clone_url': 'https://github.com/frigg/frigg-worker.git',
-            'name': 'frigg-worker',
-            'branch': 'master',
-            'owner': 'frigg',
-            'worker_host': 'albus.frigg.io',
-            'finished': False,
-            'id': 1,
-            'results': [
-                {'task': 'make test', 'return_code': 0, 'succeeded': True, 'log': 'log'},
-                {'task': 'flake8', 'pending': True},
-                {'task': 'make test'}
-            ],
-            'service_results': [
-                {'task': 'service postgresql start', 'return_code': 0, 'succeeded': True,
-                 'log': 'log'},
-            ],
-            'setup_results': [
-                {'task': 'make', 'return_code': 0, 'succeeded': True, 'log': 'log'},
-            ],
-            'after_results': [
-                {'task': 'after', 'return_code': 0, 'succeeded': True, 'log': 'log'},
-            ],
-            'webhooks': ['http://example.com']
-        })
-
-        assert self.build.result.worker_host == 'albus.frigg.io'
-        assert self.build.result.still_running
-        assert isinstance(self.build.result.tasks, list)
-        assert isinstance(self.build.result.setup_log, list)
-        assert isinstance(self.build.result.service_tasks, list)
-        assert isinstance(self.build.result.after_tasks, list)
-
-    def test_create_from_worker_payload_without_optional_results(self):
-        BuildResult.create_from_worker_payload(self.build, {
-            'sha': 'superbhash',
-            'clone_url': 'https://github.com/frigg/frigg-worker.git',
-            'name': 'frigg-worker',
-            'branch': 'master',
-            'owner': 'frigg',
-            'worker_host': 'albus.frigg.io',
-            'finished': False,
-            'id': 1,
-            'results': [
-                {'task': 'make test', 'return_code': 0, 'succeeded': True, 'log': 'log'},
-                {'task': 'flake8', 'pending': True},
-                {'task': 'make test'}
-            ],
-            'webhooks': ['http://example.com']
-        })
-
-        assert isinstance(self.build.result.tasks, list)
-        assert isinstance(self.build.result.setup_log, list)
-        assert isinstance(self.build.result.service_tasks, list)
-        assert isinstance(self.build.result.after_tasks, list)
-
-    def test_tasks(self):
-        data = [
-            {'task': 'tox', 'log': '{}', 'return_code': 0},
-            {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
-            {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
-        ]
+    def test_delete_logs_should_remove_logs(self):
+        build = Build.objects.create(project=self.project, branch='master', build_number=4)
         result = BuildResult.objects.create(
-            build=self.build,
-            result_log=data
+            build=build,
+            setup_log=[{"item": "something"}],
+            service_log=[{"item": "something"}],
+            result_log=[{"item": "something"}],
+            after_log=[{"item": "something"}],
         )
-        self.assertEqual(len(result.tasks), 3)
-        self.assertEqual(result.tasks, data)
 
-    def test_service_tasks(self):
-        data = [
-            {'task': 'tox', 'log': '{}', 'return_code': 0},
-            {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
-            {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
-        ]
-        result = BuildResult.objects.create(
-            build=self.build,
-            service_log=data
-        )
-        self.assertEqual(len(result.service_tasks), 3)
-        self.assertEqual(result.service_tasks, data)
+        build.delete_logs()
 
-    def test_setup_tasks(self):
-        data = [
-            {'task': 'tox', 'log': '{}', 'return_code': 0},
-            {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
-            {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
-        ]
-        result = BuildResult.objects.create(
-            build=self.build,
-            setup_log=data
-        )
-        self.assertEqual(len(result.setup_tasks), 3)
-        self.assertEqual(result.setup_tasks, data)
+        result = BuildResult.objects.get(pk=result.pk)
+        self.assertEqual(result.setup_log, [])
+        self.assertEqual(result.service_tasks, [])
+        self.assertEqual(result.result_log, [])
+        self.assertEqual(result.after_tasks, [])
 
-    def test_coverage_diff(self):
-        start_time = datetime(2012, 12, 12, tzinfo=get_current_timezone())
-        b1 = Build.objects.create(project=self.project, branch='i', build_number=4,
-                                  start_time=start_time)
-        positive_change = BuildResult.objects.create(build=b1, coverage=100)
-        self.assertEqual(positive_change.coverage_diff, 100)
+    class BuildResultTestCase(TestCase):
+        def setUp(self):
+            self.project = Project.objects.create(owner='frigg', name='frigg-worker')
+            self.build = Build.objects.create(project=self.project, branch='master', build_number=1)
 
-        master = Build.objects.create(project=self.project, branch='master', build_number=3,
-                                      end_time=start_time - timedelta(hours=1))
-        BuildResult.objects.create(build=master, coverage=20)
+        def test___str__(self):
+            result = BuildResult.objects.create(build=self.build)
+            self.assertEqual(str(result), 'frigg / frigg-worker / master #1')
 
-        # Need to fetch again to come around cached_property
-        self.assertEqual(BuildResult.objects.get(pk=positive_change.pk).coverage_diff, 80)
+        def test_evaluate_results(self):
+            self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}]))
+            self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}, {}]))
+            self.assertFalse(BuildResult.evaluate_results([{'succeeded': True}, {'succeeded': False}]))
+            self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {'succeeded': True}]))
+            self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {}]))
 
-        b2 = Build.objects.create(project=self.project, branch='i', build_number=5,
-                                  start_time=start_time)
-        negative_change = BuildResult.objects.create(build=b2, coverage=10)
-        self.assertEqual(negative_change.coverage_diff, -10)
+        def test_create_not_approved(self):
+            result = BuildResult.create_not_approved(self.build)
+            self.assertEqual(result.build_id, self.build.pk)
+            self.assertFalse(result.succeeded)
+            assert result.tasks[0]['error'] == 'This project is not approved.'
+            assert result.setup_tasks == []
+            assert result.service_tasks == []
 
-        b3 = Build.objects.create(project=self.project, branch='i', build_number=6,
-                                  start_time=start_time)
-        no_change = BuildResult.objects.create(build=b3, coverage=20)
-        self.assertEqual(no_change.coverage_diff, 0)
+        def test_create_from_worker_payload(self):
+            BuildResult.create_from_worker_payload(self.build, {
+                'sha': 'superbhash',
+                'clone_url': 'https://github.com/frigg/frigg-worker.git',
+                'name': 'frigg-worker',
+                'branch': 'master',
+                'owner': 'frigg',
+                'worker_host': 'albus.frigg.io',
+                'finished': False,
+                'id': 1,
+                'results': [
+                    {'task': 'make test', 'return_code': 0, 'succeeded': True, 'log': 'log'},
+                    {'task': 'flake8', 'pending': True},
+                    {'task': 'make test'}
+                ],
+                'service_results': [
+                    {'task': 'service postgresql start', 'return_code': 0, 'succeeded': True,
+                     'log': 'log'},
+                ],
+                'setup_results': [
+                    {'task': 'make', 'return_code': 0, 'succeeded': True, 'log': 'log'},
+                ],
+                'after_results': [
+                    {'task': 'after', 'return_code': 0, 'succeeded': True, 'log': 'log'},
+                ],
+                'webhooks': ['http://example.com']
+            })
+
+            assert self.build.result.worker_host == 'albus.frigg.io'
+            assert self.build.result.still_running
+            assert isinstance(self.build.result.tasks, list)
+            assert isinstance(self.build.result.setup_log, list)
+            assert isinstance(self.build.result.service_tasks, list)
+            assert isinstance(self.build.result.after_tasks, list)
+
+        def test_create_from_worker_payload_without_optional_results(self):
+            BuildResult.create_from_worker_payload(self.build, {
+                'sha': 'superbhash',
+                'clone_url': 'https://github.com/frigg/frigg-worker.git',
+                'name': 'frigg-worker',
+                'branch': 'master',
+                'owner': 'frigg',
+                'worker_host': 'albus.frigg.io',
+                'finished': False,
+                'id': 1,
+                'results': [
+                    {'task': 'make test', 'return_code': 0, 'succeeded': True, 'log': 'log'},
+                    {'task': 'flake8', 'pending': True},
+                    {'task': 'make test'}
+                ],
+                'webhooks': ['http://example.com']
+            })
+
+            assert isinstance(self.build.result.tasks, list)
+            assert isinstance(self.build.result.setup_log, list)
+            assert isinstance(self.build.result.service_tasks, list)
+            assert isinstance(self.build.result.after_tasks, list)
+
+        def test_tasks(self):
+            data = [
+                {'task': 'tox', 'log': '{}', 'return_code': 0},
+                {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
+                {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
+            ]
+            result = BuildResult.objects.create(
+                build=self.build,
+                result_log=data
+            )
+            self.assertEqual(len(result.tasks), 3)
+            self.assertEqual(result.tasks, data)
+
+        def test_service_tasks(self):
+            data = [
+                {'task': 'tox', 'log': '{}', 'return_code': 0},
+                {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
+                {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
+            ]
+            result = BuildResult.objects.create(
+                build=self.build,
+                service_log=data
+            )
+            self.assertEqual(len(result.service_tasks), 3)
+            self.assertEqual(result.service_tasks, data)
+
+        def test_setup_tasks(self):
+            data = [
+                {'task': 'tox', 'log': '{}', 'return_code': 0},
+                {'task': 'tox', 'log': 'tested all the stuff\n1!"#$%&/()=?', 'return_code': 11},
+                {'task': 'tox', 'return_log': 'fail', 'return_code': 'd'}
+            ]
+            result = BuildResult.objects.create(
+                build=self.build,
+                setup_log=data
+            )
+            self.assertEqual(len(result.setup_tasks), 3)
+            self.assertEqual(result.setup_tasks, data)
+
+        def test_coverage_diff(self):
+            start_time = datetime(2012, 12, 12, tzinfo=get_current_timezone())
+            b1 = Build.objects.create(project=self.project, branch='i', build_number=4,
+                                      start_time=start_time)
+            positive_change = BuildResult.objects.create(build=b1, coverage=100)
+            self.assertEqual(positive_change.coverage_diff, 100)
+
+            master = Build.objects.create(project=self.project, branch='master', build_number=3,
+                                          end_time=start_time - timedelta(hours=1))
+            BuildResult.objects.create(build=master, coverage=20)
+
+            # Need to fetch again to come around cached_property
+            self.assertEqual(BuildResult.objects.get(pk=positive_change.pk).coverage_diff, 80)
+
+            b2 = Build.objects.create(project=self.project, branch='i', build_number=5,
+                                      start_time=start_time)
+            negative_change = BuildResult.objects.create(build=b2, coverage=10)
+            self.assertEqual(negative_change.coverage_diff, -10)
+
+            b3 = Build.objects.create(project=self.project, branch='i', build_number=6,
+                                      start_time=start_time)
+            no_change = BuildResult.objects.create(build=b3, coverage=20)
+            self.assertEqual(no_change.coverage_diff, 0)

@@ -316,6 +316,18 @@ class Build(TimeStampModel):
         deployment.start()
         return deployment
 
+    def delete_logs(self):
+        """
+        This will replace all log with the default content
+        """
+        result = self.result
+        result.service_log = []
+        result.setup_log = []
+        result.result_log = []
+        result.after_log = []
+        result.save()
+        logger.info("Deleted log for {0}".format(self))
+
 
 class BuildResult(TimeStampModel):
     build = models.OneToOneField(Build, related_name='result')
