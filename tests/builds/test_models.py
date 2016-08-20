@@ -477,8 +477,14 @@ class BuildTestCase(TestCase):
         def test_evaluate_results(self):
             self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}]))
             self.assertTrue(BuildResult.evaluate_results([{'succeeded': True}, {}]))
-            self.assertFalse(BuildResult.evaluate_results([{'succeeded': True}, {'succeeded': False}]))
-            self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {'succeeded': True}]))
+            self.assertFalse(BuildResult.evaluate_results([
+                {'succeeded': True},
+                {'succeeded': False}
+            ]))
+            self.assertFalse(BuildResult.evaluate_results([
+                {'succeeded': False},
+                {'succeeded': True}
+            ]))
             self.assertFalse(BuildResult.evaluate_results([{'succeeded': False}, {}]))
 
         def test_create_not_approved(self):

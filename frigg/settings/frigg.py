@@ -25,3 +25,5 @@ AUTO_APPROVE_OWNERS = ['frigg', 'frecar', 'relekang']
 OVERVIEW_PAGINATION_COUNT = 100
 
 DEFAULT_BUILD_IMAGE = "frigg/frigg-test-base"
+
+FRIGG_KEEP_BUILD_LOGS_TIMEDELTA = 30 * 24
